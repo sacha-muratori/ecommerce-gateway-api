@@ -1,4 +1,4 @@
-# E-Commerce Gateway API MicroService for internal APIs
+# E-Commerce Gateway API MicroService
 
 ## Overview
 
@@ -185,7 +185,7 @@ The timer resets when a batch is sent before the timeout.
 - Maven or Gradle
 - Docker & Docker Compose (Install Guide)
 
-### Running the Aggregation API
+### Running the Gateway API -> In progress
 
 Step 1: Pull Backend Services Image
 

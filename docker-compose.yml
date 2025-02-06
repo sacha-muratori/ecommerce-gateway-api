@@ -1,0 +1,16 @@
+services:
+  backend-services:
+    image: xyzassessment/backend-services
+    container_name: backend-services
+#    ports:
+#      - "4040:8080"
+
+  aggregation-services:
+    image: shippingcompany/gateway-api
+    container_name: gateway-api
+    depends_on:
+      - backend-services
+    ports:
+      - "8080:8080"
+    environment:
+      - BACKEND_SERVICES_URL=http://backend-services:8080/
