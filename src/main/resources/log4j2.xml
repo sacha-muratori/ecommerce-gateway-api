@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration>
+    <Appenders>
+        <Console name="console">
+            <PatternLayout pattern="%d [%t] %-5p [%c] %m%n" />
+        </Console>
+    </Appenders>
+
+    <Loggers>
+        <Logger name="org.apache.tomcat" level="INFO" additivity="false">
+            <AppenderRef ref="tomcat" />
+        </Logger>
+        <Logger name="org.apache.catalina" level="INFO" additivity="false">
+            <AppenderRef ref="tomcat" />
+        </Logger>
+        <Logger name="org.hibernate" level="WARN" additivity="false">
+            <AppenderRef ref="console" />
+            <AppenderRef ref="file" />
+        </Logger>
+        <Logger name="org.springframework" level="INFO" additivity="false">
+            <AppenderRef ref="console" />
+            <AppenderRef ref="file" />
+        </Logger>
+        <Logger name="com.shippingcompany" level="INFO" additivity="false">
+            <AppenderRef ref="console" />
+            <AppenderRef ref="file" />
+        </Logger>
+
+        <Root level="INFO" additivity="false">
+            <AppenderRef ref="console" />
+            <AppenderRef ref="file" />
+        </Root>
+    </Loggers>
+</Configuration>
