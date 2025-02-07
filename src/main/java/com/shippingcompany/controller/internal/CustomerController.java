@@ -5,21 +5,30 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Mono;
 
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 
 @RestController
 @RequestMapping("/internal/customer")
 public class CustomerController {
-    @GetMapping("/{id}")
-    public ResponseEntity<List<String>> getCustomer(@PathVariable String id) {
-        Map<String, List<String>> mockCustomers = Map.of(
-            "3660234050", List.of("Mark", "Fabbri", "Seychelles"),
-            "377889999", List.of("Hugo", "Erikson", "Luxembourg"),
-            "322229999", List.of("Elisabeth", "Cierra", "Mexico")
-        );
+    private static final Map<String, List<String>> MOCK_CUSTOMERS = new HashMap<>() {
+        {
+            put("a3660234050", List.of("Mark", "Fabbri", "Seychelles"));
+            put("b377889999", List.of("Hugo", "Erikson", "Luxembourg"));
+            put("c322229999", List.of("Elisabeth", "Cierra", "Mexico"));
+        }
+    };
 
-        return ResponseEntity.ok(mockCustomers.getOrDefault(id, null));
+    @GetMapping("/{id}")
+    public Mono<ResponseEntity<List<String>>> getCustomer(@PathVariable String id) {
+        int delay = ThreadLocalRandom.current().nextInt(500, 1500); // Random delay between 0.5s and 1.5s
+        return Mono.delay(Duration.ofMillis(delay))
+                .thenReturn(ResponseEntity.ok(MOCK_CUSTOMERS.getOrDefault(id, null)));
     }
 }

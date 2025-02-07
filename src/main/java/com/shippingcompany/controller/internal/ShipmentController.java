@@ -2,19 +2,28 @@ package com.shippingcompany.controller.internal;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Mono;
 
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 
 @RestController
 @RequestMapping("/internal/shipment")
 public class ShipmentController {
-    private static final Map<String, Object[]> MOCK_SHIPMENTS = Map.of(
-        "555555555", new Object[]{"3 Days", 15.50, "DHL", "IN TRANSIT"},
-        "588888221", new Object[]{"2 weeks", 40.99, "UPS", "PENDING"}
-    );
+    private static final Map<String, List<?>> MOCK_SHIPMENTS =  new HashMap<>() {
+        {
+            put("555555555", List.of("3 Days", 15.50, "DHL", "IN TRANSIT"));
+            put("588888221", List.of("2 weeks", 40.99, "UPS", "PENDING"));
+        }
+    };
 
     @GetMapping("/{id}")
-    public ResponseEntity<Object[]> getShipment(@PathVariable String id) {
-        return ResponseEntity.ok(MOCK_SHIPMENTS.getOrDefault(id, null));
+    public Mono<ResponseEntity<List<?>>> getShipment(@PathVariable String id) {
+        int delay = ThreadLocalRandom.current().nextInt(500, 1500); // Random delay between 0.5s and 1.5s
+        return Mono.delay(Duration.ofMillis(delay))
+                    .thenReturn(ResponseEntity.ok(MOCK_SHIPMENTS.getOrDefault(id, null)));
     }
 }
