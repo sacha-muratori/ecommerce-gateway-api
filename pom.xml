@@ -10,7 +10,7 @@
         <relativePath />
     </parent>
 
-    <groupId>com.shippingcompany</groupId>
+    <groupId>com.ecommerce</groupId>
     <artifactId>gateway-api</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 
@@ -97,7 +97,7 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>/</classpathPrefix>
-                            <mainClass>com.shippingcompany.MainApplication</mainClass>
+                            <mainClass>com.ecommerce.MainApplication</mainClass>
                         </manifest>
                     </archive>
                 </configuration>

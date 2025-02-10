@@ -1,4 +1,4 @@
-package com.shippingcompany.controller.master;
+package com.ecommerce.controller.master;
 
 import jakarta.annotation.PostConstruct;
 import org.apache.logging.log4j.LogManager;

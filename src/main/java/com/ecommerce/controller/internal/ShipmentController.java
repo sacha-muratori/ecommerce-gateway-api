@@ -1,4 +1,4 @@
-package com.shippingcompany.controller.internal;
+package com.ecommerce.controller.internal;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

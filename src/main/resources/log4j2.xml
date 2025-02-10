@@ -25,7 +25,7 @@
         <Logger name="org.springframework" level="INFO" additivity="false">
             <AppenderRef ref="console" />
         </Logger>
-        <Logger name="com.shippingcompany.controller.master.GatewayController" level="DEBUG" additivity="false">
+        <Logger name="com.ecommerce.controller.master.GatewayController" level="DEBUG" additivity="false">
             <AppenderRef ref="console" />
         </Logger>
 
