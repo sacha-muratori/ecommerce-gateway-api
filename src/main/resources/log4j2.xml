@@ -3,32 +3,34 @@
     <Appenders>
         <Console name="console">
             <PatternLayout pattern="%d [%t] %-5p [%c] %m%n" />
+            <!-- Optionally define a file appender if you want to log to a file -->
+            <!--
+            <File name="file" fileName="logs/app.log">
+                <PatternLayout pattern="%d [%t] %-5p [%c] %m%n" />
+            </File>
+            -->
         </Console>
     </Appenders>
 
     <Loggers>
         <Logger name="org.apache.tomcat" level="INFO" additivity="false">
-            <AppenderRef ref="tomcat" />
+            <AppenderRef ref="console" />
         </Logger>
         <Logger name="org.apache.catalina" level="INFO" additivity="false">
-            <AppenderRef ref="tomcat" />
+            <AppenderRef ref="console" />
         </Logger>
         <Logger name="org.hibernate" level="WARN" additivity="false">
             <AppenderRef ref="console" />
-            <AppenderRef ref="file" />
         </Logger>
         <Logger name="org.springframework" level="INFO" additivity="false">
             <AppenderRef ref="console" />
-            <AppenderRef ref="file" />
         </Logger>
-        <Logger name="com.shippingcompany" level="INFO" additivity="false">
+        <Logger name="com.shippingcompany.controller.master.GatewayController" level="DEBUG" additivity="false">
             <AppenderRef ref="console" />
-            <AppenderRef ref="file" />
         </Logger>
 
-        <Root level="INFO" additivity="false">
+        <Root level="DEBUG">
             <AppenderRef ref="console" />
-            <AppenderRef ref="file" />
         </Root>
     </Loggers>
 </Configuration>

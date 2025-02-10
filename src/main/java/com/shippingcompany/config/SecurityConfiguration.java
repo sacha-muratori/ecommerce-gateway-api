@@ -32,7 +32,7 @@ public class SecurityConfiguration {
 
                 .authorizeExchange(exchanges -> exchanges
                         // NOTE: opened for Rest Controller
-                        .pathMatchers("/gateway**").permitAll()
+                        .pathMatchers("/gateway/**").permitAll()
                         .pathMatchers("/internal/**").permitAll()
 
                         // NOTE: opened for Internal and Prometheus Metrics
