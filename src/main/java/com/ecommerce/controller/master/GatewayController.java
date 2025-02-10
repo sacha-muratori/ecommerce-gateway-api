@@ -107,6 +107,11 @@ public class GatewayController {
 
         responseCache.computeIfAbsent(endpoint, k -> new ConcurrentHashMap<>());
 
+        List<Mono<Map.Entry<String, Optional<List<?>>>>> monitors = new ArrayList<>();
+        for (String id : ids) {
+            monitors.add(waitForResponse(endpoint, id));
+        }
+
         return Flux.fromIterable(ids)
                 .doOnNext(id -> {
                     Sinks.Many<String> sink = requestQueues.get(endpoint);
@@ -120,18 +125,35 @@ public class GatewayController {
     }
 
     private Mono<Map.Entry<String, Optional<List<?>>>> waitForResponse(String endpoint, String id) {
+
         return Mono.create(sink -> {
             responseCache.get(endpoint).put(id, Optional.empty());
 
             Flux.interval(Duration.ofMillis(100))
-                    .take(Duration.ofSeconds(10)) // Wait up to 10 seconds
-                    .map(i -> responseCache.get(endpoint).get(id))
-                    .filter(Optional::isPresent)
-                    .next()
-                    .switchIfEmpty(Mono.just(Optional.empty())) // Fallback: if nothing is emitted after 10s, use Optional.empty()
-                    .map(data -> Map.entry(id, data))
+                    .take(Duration.ofMillis(queueApiWaitMaxTime)) // Wait up to specified max time
+                    .flatMap(i -> {
+                        Optional<List<?>> response = responseCache.get(endpoint).get(id);
+                        if (response.isPresent()) {
+                            return Mono.just(Map.entry(id, response));
+                        } else {
+                            return Mono.empty();
+                        }
+                    })
+                    .takeUntilOther(Flux.interval(Duration.ofMillis(queueApiWaitMaxTime)).take(1)) // Timeout if nothing is emitted within the wait time
+                    .defaultIfEmpty(Map.entry(id, Optional.empty())) // Fallback: if nothing is emitted, use Optional.empty()
                     .subscribe(sink::success, sink::error);
         });
+
+//        return Mono.create(sink -> {
+//            Flux.interval(Duration.ofMillis(100))
+//                    .take(Duration.ofMillis(queueApiWaitMaxTime))
+//                    .map(i -> responseCache.get(endpoint).get(id))
+//                    .filter(Objects::nonNull)
+//                    .next()
+//                    .switchIfEmpty(Mono.just(Optional.empty())) // Fallback: if nothing is emitted after 5s, use Optional.empty()
+//                    .map(data -> Map.entry(id, data))
+//                    .subscribe(sink::success, sink::error);
+//        });
     }
 
     private Flux<Void> fetchBatchData(String endpoint, List<String> batch) {

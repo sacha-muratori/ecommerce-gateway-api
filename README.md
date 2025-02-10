@@ -158,15 +158,14 @@ or a mix of them
 
 ### 1. Single Network Call
 
-Consolidates API requests for Pricing, Track, and Shipments into a single request.  
+Consolidates API requests for Customer, Product, Inventory, Order, Shipment into a single request.  
 The service forwards each request to its respective API and returns a unified response once all results are available.
-BUT:
 
 ### 2. Throttling and Batching
 
 To optimize performance and prevent API overload:
 
-- Requests are queued per API.
+- Requests are queued per internal API type.
 - A batched request is sent when the queue reaches 5 items.
 - Responses are returned only after all relevant API calls complete.
 
@@ -183,34 +182,23 @@ The timer resets when a batch is sent before the timeout.
 
 - Java (latest stable version)
 - Maven or Gradle
-- Docker & Docker Compose (Install Guide)
+- Docker
 
-### Running the Gateway API -> In progress
-
-Step 1: Pull Backend Services Image
-
-```bash
-docker pull xyzassessment/backend-services
-```
+### Running the Gateway API
 
 Step 2: Build the Aggregation API Docker Image
 
 ```bash
-docker build -t aggregation-api .
+docker build -t ecommerce-gateway-api .
 ```
 
-Step 3: Start the Application with Docker Compose
+Step 3: Start the Application with Docker 
 
 ```bash
-docker-compose up
+docker run -p 8080:8080 ecommerce-gateway-api
 ```
 
 Now the Gateway API is available on localhost:8080.
 
 ## Notes
-
-
-??? 
-- The Dockerfile and docker-compose.yml can be adjusted for CI/CD integration.
-- Ensure all services are running before starting the application.
-- The backend service URLs can be configured via environment variables.
+The Dockerfile can be adjusted for CI/CD integration.

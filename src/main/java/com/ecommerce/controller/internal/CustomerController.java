@@ -26,7 +26,7 @@ public class CustomerController {
 
     @GetMapping("/{id}")
     public Mono<ResponseEntity<List<String>>> getCustomer(@PathVariable String id) {
-        int delay = ThreadLocalRandom.current().nextInt(500, 1500); // Random delay between 0.5s and 1.5s
+        int delay = ThreadLocalRandom.current().nextInt(250, 750); // Random delay between 0.25s and 0.75s
         return Mono.delay(Duration.ofMillis(delay))
                 .thenReturn(ResponseEntity.ok(MOCK_CUSTOMERS.getOrDefault(id, null)));
     }
