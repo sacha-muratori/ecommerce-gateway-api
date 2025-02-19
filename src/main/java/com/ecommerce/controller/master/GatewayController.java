@@ -41,7 +41,7 @@ public class GatewayController {
 
     private final Logger log = LogManager.getLogger(this.getClass());
     private final Map<String, Sinks.Many<String>> requestQueues = new ConcurrentHashMap<>();
-    private final Map<String, Map<String, Optional<List<?>>>> responseCache = new ConcurrentHashMap<>();
+    private final Map<String, Map<String, Sinks.One<List<?>>>> responseCache = new ConcurrentHashMap<>();
 
     @PostConstruct
     public void init() {
@@ -67,7 +67,7 @@ public class GatewayController {
     }
 
     @GetMapping
-    public Mono<ResponseEntity<Map<String, Map<String, Optional<List<?>>>>>> getAggregatedData(
+    public Mono<ResponseEntity<Map<String, Map<String, List<?>>>>> getAggregatedData(
             @RequestParam(required = false) List<String> customer,
             @RequestParam(required = false) List<String> product,
             @RequestParam(required = false) List<String> inventory,
@@ -81,35 +81,55 @@ public class GatewayController {
         if (order != null) requestMap.put("order", parseToBigDecimals(order));
         if (shipment != null) requestMap.put("shipment", parseToBigDecimals(shipment));
 
-        // Log start time
-        List<String> nonNullEndpoints = requestMap.keySet().stream().collect(Collectors.toList());
+        List<String> nonNullEndpoints = new ArrayList<>(requestMap.keySet());
         log.info("Starting processing for endpoint(s) {} at {}", nonNullEndpoints, getFormattedCurrentTime());
 
-        // Get the start time at the beginning of the request
         long startTime = System.currentTimeMillis();
 
-        // Log the processing for each endpoint
-        return Flux.fromIterable(requestMap.entrySet())
-                .flatMap(entry -> processRequest(entry.getKey(), entry.getValue())
-                        .doOnTerminate(() -> {
-                            // Log the finish time for each endpoint after processing
-                            long elapsedTime = System.currentTimeMillis() - startTime;
-                            log.info("Finished processing for endpoint(s) {} at {}. Total time: {} ms", entry.getKey(), getFormattedCurrentTime(), elapsedTime);
-                        }))
-                .collectMap(Map.Entry::getKey, Map.Entry::getValue)
-                .map(ResponseEntity::ok); // Return the final response
+        List<Mono<Map.Entry<String, Map<String, List<?>>>>> responseMonos = requestMap.entrySet()
+                .stream()
+                .map(entry -> queueAndProcessRequest(entry.getKey(), entry.getValue()))
+                .collect(Collectors.toList());
+
+        return Mono.zip(responseMonos, results -> {
+                    Map<String, Map<String, List<?>>> finalResponse = new HashMap<>();
+                    for (Object result : results) {
+                        @SuppressWarnings("unchecked")
+                        Map.Entry<String, Map<String, List<?>>> entry = (Map.Entry<String, Map<String, List<?>>>) result;
+                        finalResponse.put(entry.getKey(), entry.getValue());
+                    }
+                    // Ensure all requested IDs appear in the response, even if null
+                    for (Map.Entry<String, List<String>> request : requestMap.entrySet()) {
+                        String endpoint = request.getKey();
+                        List<String> requestedIds = request.getValue();
+                        Map<String, List<?>> responseData = finalResponse.getOrDefault(endpoint, new HashMap<>());
+
+                        for (String id : requestedIds) {
+                            if (!responseData.containsKey(id)) {
+                                responseData.put(id, null); // Add missing IDs with `null`
+                            }
+                        }
+                        finalResponse.put(endpoint, responseData);
+                    }
+                    return finalResponse;
+                })
+                .doOnSuccess(response -> {
+                    long elapsedTime = System.currentTimeMillis() - startTime;
+                    log.info("Finished processing for endpoint(s) {} at {}. Total time: {} ms", nonNullEndpoints, getFormattedCurrentTime(), elapsedTime);
+                })
+                .map(ResponseEntity::ok);
     }
 
-    private Mono<Map.Entry<String, Map<String, Optional<List<?>>>>> processRequest(String endpoint, List<String> ids) {
+    private Mono<Map.Entry<String, Map<String, List<?>>>> queueAndProcessRequest(String endpoint, List<String> ids) {
         if (ids.isEmpty()) {
             return Mono.just(Map.entry(endpoint, Collections.emptyMap()));
         }
 
         responseCache.computeIfAbsent(endpoint, k -> new ConcurrentHashMap<>());
 
-        List<Mono<Map.Entry<String, Optional<List<?>>>>> monitors = new ArrayList<>();
+        List<Mono<Map.Entry<String, List<?>>>> waitingMonos = new ArrayList<>();
         for (String id : ids) {
-            monitors.add(waitForResponse(endpoint, id));
+            waitingMonos.add(waitForResponse(endpoint, id));
         }
 
         return Flux.fromIterable(ids)
@@ -119,70 +139,71 @@ public class GatewayController {
                         throw new RuntimeException("Failed to queue request for " + endpoint);
                     }
                 })
-                .flatMap(id -> waitForResponse(endpoint, id)) // Wait for response
-                .collectMap(Map.Entry::getKey, Map.Entry::getValue)
-                .map(data -> Map.entry(endpoint, data));
+                .then(Mono.zip(waitingMonos, results -> {
+                    Map<String, List<?>> collectedResults = new HashMap<>();
+                    for (Object result : results) {
+                        @SuppressWarnings("unchecked")
+                        Map.Entry<String, List<?>> entry = (Map.Entry<String, List<?>>) result;
+                        collectedResults.put(entry.getKey(), entry.getValue());
+                    }
+                    // Ensure all requested IDs are present, even if they have null responses
+                    for (String id : ids) {
+                        if (!collectedResults.containsKey(id)) {
+                            collectedResults.put(id, null); // Explicitly add missing IDs with null
+                        }
+                    }
+
+                    return Map.entry(endpoint, collectedResults);
+                }));
     }
 
-    private Mono<Map.Entry<String, Optional<List<?>>>> waitForResponse(String endpoint, String id) {
 
-        return Mono.create(sink -> {
-            responseCache.get(endpoint).put(id, Optional.empty());
+    private Mono<Map.Entry<String, List<?>>> waitForResponse(String endpoint, String id) {
+        Sinks.One<List<?>> sink = Sinks.one();
+        responseCache.get(endpoint).put(id, sink);
 
-            Flux.interval(Duration.ofMillis(100))
-                    .take(Duration.ofMillis(queueApiWaitMaxTime)) // Wait up to specified max time
-                    .flatMap(i -> {
-                        Optional<List<?>> response = responseCache.get(endpoint).get(id);
-                        if (response.isPresent()) {
-                            return Mono.just(Map.entry(id, response));
-                        } else {
-                            return Mono.empty();
-                        }
-                    })
-                    .takeUntilOther(Flux.interval(Duration.ofMillis(queueApiWaitMaxTime)).take(1)) // Timeout if nothing is emitted within the wait time
-                    .defaultIfEmpty(Map.entry(id, Optional.empty())) // Fallback: if nothing is emitted, use Optional.empty()
-                    .subscribe(sink::success, sink::error);
-        });
-
-//        return Mono.create(sink -> {
-//            Flux.interval(Duration.ofMillis(100))
-//                    .take(Duration.ofMillis(queueApiWaitMaxTime))
-//                    .map(i -> responseCache.get(endpoint).get(id))
-//                    .filter(Objects::nonNull)
-//                    .next()
-//                    .switchIfEmpty(Mono.just(Optional.empty())) // Fallback: if nothing is emitted after 5s, use Optional.empty()
-//                    .map(data -> Map.entry(id, data))
-//                    .subscribe(sink::success, sink::error);
-//        });
+        return sink.asMono()
+                .defaultIfEmpty(Collections.emptyList()) // Ensure missing data returns an empty list
+                .map(data -> Map.entry(id, data));
     }
 
     private Flux<Void> fetchBatchData(String endpoint, List<String> batch) {
         return Flux.fromIterable(batch)
                 .flatMap(id -> webClient.get()
-                        .uri(uriBuilder -> uriBuilder
-                                .path(endpoint + "/" + id)
-                                .build()
-                        )
+                        .uri(uriBuilder -> uriBuilder.path(endpoint + "/" + id).build())
                         .retrieve()
-                        .toEntity(new ParameterizedTypeReference<List<?>>() {})  // Use toEntity to get ResponseEntity
-                        .defaultIfEmpty(ResponseEntity.ok(Collections.emptyList()))  // Default to empty List if not found
+                        .toEntity(new ParameterizedTypeReference<>() {})  // Accepts any type
+                        .defaultIfEmpty(ResponseEntity.ok(Collections.emptyList())) // Case if Response Entity is null
                         .flatMap(responseEntity -> {
-                            List<?> data = responseEntity.getBody();  // Extract the List<?> from ResponseEntity
-                            // Now you can use 'data' (List<?>) as required
-                            responseCache.get(endpoint).put(id, Optional.ofNullable(data));
-                            return Mono.empty();  // Return Mono.empty() as the return type is Flux<Void>
+                            Object body = responseEntity.getBody();
+                            List<Object> data;
+
+                            // If the response is a String, wrap it in a List
+                            if (body instanceof String) {
+                                data = List.of(body);
+                            } else if (body instanceof List<?>) {
+                                data = (List<Object>) body;
+                            } else {
+                                data = new ArrayList<>(); // case if Body of Response Entity is null
+                            }
+
+
+                            Sinks.One<List<?>> sink = responseCache.get(endpoint).remove(id);
+                            if (sink != null) {
+                                sink.tryEmitValue(data);
+                            }
+                            return Mono.empty();
                         })
                 );
     }
 
-    private List<String> parseToBigDecimals(List<String> ids) {
-        if (ids == null || ids.isEmpty()) return Collections.emptyList();
 
+    private List<String> parseToBigDecimals(List<String> ids) {
         return ids.stream()
                 .map(id -> {
                     try {
                         BigDecimal decimal = new BigDecimal(id);
-                        decimal = new BigDecimal(decimal.toBigInteger()); // Remove decimals
+                        decimal = new BigDecimal(decimal.toBigInteger());
                         if (decimal.compareTo(BigDecimal.ZERO) > 0 && decimal.scale() == 0) {
                             return decimal.toString();
                         } else {
@@ -196,13 +217,11 @@ public class GatewayController {
     }
 
     private List<String> parseAlphanumericCustomerIds(List<String> ids) {
-        if (ids == null || ids.isEmpty()) return Collections.emptyList();
-
         return ids.stream()
                 .map(id -> {
                     String sanitizedId = HtmlUtils.htmlEscape(id);
                     if (!sanitizedId.matches("[a-zA-Z0-9]+")) {
-                        throw new IllegalArgumentException("Invalid customer ID: " + id + " - It must be alphanumeric.");
+                        throw new IllegalArgumentException("Invalid customer ID: " + id);
                     }
                     return sanitizedId;
                 })
