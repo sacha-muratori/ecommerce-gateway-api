@@ -1,21 +1,16 @@
 package com.ecommerce.controller.internal;
 
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
+import com.ecommerce.controller.internal.base.AbstractInternalController;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import reactor.core.publisher.Mono;
 
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
 
 @RestController
 @RequestMapping("/internal/inventory")
-public class InventoryController {
+public class InventoryController extends AbstractInternalController<String> {
+
     private static final Map<String, String> MOCK_INVENTORY = new HashMap<>() {{
         put("222222220", "IN STOCK");
         put("200000001", "NOT AVAILABLE");
@@ -39,17 +34,14 @@ public class InventoryController {
         put("460000018", "NOT AVAILABLE");
     }};
 
-    @GetMapping("/{id}")
-    public Mono<ResponseEntity<String>> getInventory(@PathVariable String id) {
-        int delay = ThreadLocalRandom.current().nextInt(250, 750); // Random delay between 0.25s and 0.75s
-        return Mono.delay(Duration.ofMillis(delay))
-                .thenReturn(ResponseEntity.ok()
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body(quoteIfNotNull(MOCK_INVENTORY.getOrDefault(id, null))));
+    @Override
+    protected Map<String, String> getMockData() {
+        return MOCK_INVENTORY;
     }
 
-    private String quoteIfNotNull(String value) {
-        return value != null ? "\"" + value + "\"" : "null";
+    @Override
+    protected String transformResponse(String value) {
+        return value != null ? "\"" + value + "\"" : "null"; // Adds quotes to string responses if not null
     }
 
 }

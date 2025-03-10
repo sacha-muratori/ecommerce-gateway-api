@@ -1,21 +1,17 @@
 package com.ecommerce.controller.internal;
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
+import com.ecommerce.controller.internal.base.AbstractInternalController;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import reactor.core.publisher.Mono;
 
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
 
 @RestController
 @RequestMapping("/internal/order")
-public class OrderController {
+public class OrderController extends AbstractInternalController<List<String>> {
+
     private static final Map<String, List<String>> MOCK_ORDERS = new HashMap<>() {{
         put("400000000", List.of("ACTIVE", "a3660234050", "100000000", "555555555"));
         put("411011333", List.of("COMPLETED", "c322229999", "123456789", "588888221"));
@@ -39,10 +35,8 @@ public class OrderController {
         put("590000018", List.of("COMPLETED", "t123456789", "190000018", "555555557"));
     }};
 
-    @GetMapping("/{id}")
-    public Mono<ResponseEntity<List<String>>> getOrder(@PathVariable String id) {
-        int delay = ThreadLocalRandom.current().nextInt(250, 750); // Random delay between 0.25s and 0.75s
-        return Mono.delay(Duration.ofMillis(delay))
-                .thenReturn(ResponseEntity.ok(MOCK_ORDERS.getOrDefault(id, null)));
+    @Override
+    protected Map<String, List<String>> getMockData() {
+        return MOCK_ORDERS;
     }
 }

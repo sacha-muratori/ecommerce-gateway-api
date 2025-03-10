@@ -1,21 +1,17 @@
 package com.ecommerce.controller.internal;
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
+import com.ecommerce.controller.internal.base.AbstractInternalController;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import reactor.core.publisher.Mono;
 
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
 
 @RestController
 @RequestMapping("/internal/shipment")
-public class ShipmentController {
+public class ShipmentController extends AbstractInternalController<List<?>> {
+
     private static final Map<String, List<?>> MOCK_SHIPMENTS = new HashMap<>() {{
         put("555555555", List.of("3 Days", 15.50, "DHL", "IN TRANSIT"));
         put("588888221", List.of("2 weeks", 40.99, "UPS", "PENDING"));
@@ -39,10 +35,9 @@ public class ShipmentController {
         put("555555557", List.of("3 Days", 14.99, "USPS", "SHIPPED"));
     }};
 
-    @GetMapping("/{id}")
-    public Mono<ResponseEntity<List<?>>> getShipment(@PathVariable String id) {
-        int delay = ThreadLocalRandom.current().nextInt(250, 750); // Random delay between 0.25s and 0.75s
-        return Mono.delay(Duration.ofMillis(delay))
-                .thenReturn(ResponseEntity.ok(MOCK_SHIPMENTS.getOrDefault(id, null)));
+
+    @Override
+    protected Map<String, List<?>> getMockData() {
+        return MOCK_SHIPMENTS;
     }
 }
