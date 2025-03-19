@@ -14,22 +14,15 @@ public class InventoryController extends AbstractInternalController<String> {
     private static final Map<String, String> MOCK_INVENTORY = new HashMap<>() {{
         put("222222220", "IN STOCK");
         put("200000001", "NOT AVAILABLE");
-        put("234567890", null);
         put("300000002", "IN STOCK");
         put("310000003", "NOT AVAILABLE");
-        put("320000004", null);
         put("330000005", "IN STOCK");
-        put("340000006", null);
         put("350000007", "NOT AVAILABLE");
         put("360000008", "IN STOCK");
-        put("370000009", null);
         put("380000010", "IN STOCK");
         put("390000011", "NOT AVAILABLE");
-        put("400000012", null);
         put("410000013", "IN STOCK");
         put("420000014", "NOT AVAILABLE");
-        put("430000015", null);
-        put("440000016", null);
         put("450000017", "IN STOCK");
         put("460000018", "NOT AVAILABLE");
     }};
@@ -38,10 +31,4 @@ public class InventoryController extends AbstractInternalController<String> {
     protected Map<String, String> getMockData() {
         return MOCK_INVENTORY;
     }
-
-    @Override
-    protected String transformResponse(String value) {
-        return value != null ? "\"" + value + "\"" : "null"; // Adds quotes to string responses if not null
-    }
-
 }

@@ -35,7 +35,6 @@ public class ShipmentController extends AbstractInternalController<List<?>> {
         put("555555557", List.of("3 Days", 14.99, "USPS", "SHIPPED"));
     }};
 
-
     @Override
     protected Map<String, List<?>> getMockData() {
         return MOCK_SHIPMENTS;

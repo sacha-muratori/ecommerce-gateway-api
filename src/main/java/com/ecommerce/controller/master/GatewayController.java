@@ -1,6 +1,6 @@
 package com.ecommerce.controller.master;
 
-import com.ecommerce.service.master.GatewayService;
+import com.ecommerce.service.master.queue.RequestQueueProcessor;
 import com.ecommerce.util.GatewayParser;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/gateway")
@@ -21,7 +22,7 @@ public class GatewayController {
     private final Logger log = LogManager.getLogger(this.getClass());
 
     @Autowired
-    private GatewayService gatewayService;
+    private RequestQueueProcessor requestHandler;
 
     @Autowired
     private GatewayParser requestParser;
@@ -45,40 +46,25 @@ public class GatewayController {
         log.info("Starting processing for endpoint(s) {} at {}", nonNullEndpoints, requestParser.getFormattedCurrentTime());
         long startTime = System.currentTimeMillis();
 
-        List<Mono<Map.Entry<String, Map<String, List<?>>>>> responseMonos = requestMap.entrySet()
-                .stream()
-                .map(entry -> gatewayService.queueAndProcessRequest(entry.getKey(), entry.getValue()))
-                .toList();
+        // The List of responses, each being a Mono of a Map is populated with the answer
+        List<Mono<Map.Entry<String, Map<String, List<?>>>>> responseMonos =
+                requestMap
+                        .entrySet()
+                        .stream()
+                        .map(entry -> requestHandler.queueAndProcessRequest(entry.getKey(), entry.getValue()))
+                        .toList();
 
-        return Mono.zip(responseMonos, results -> {
-                    Map<String, Map<String, List<?>>> finalResponse = new HashMap<>();
-
-                    for (Object result : results) {
-                        @SuppressWarnings("unchecked")
-                        Map.Entry<String, Map<String, List<?>>> entry = (Map.Entry<String, Map<String, List<?>>>) result;
-                        finalResponse.put(entry.getKey(), entry.getValue());
-                    }
-
-                    // Ensure all requested IDs appear in the response, even if null //TODO: do I need it ?
-//                    for (Map.Entry<String, List<String>> request : requestMap.entrySet()) {
-//                        String endpoint = request.getKey();
-//                        List<String> requestedIds = request.getValue();
-//                        Map<String, List<?>> responseData = finalResponse.getOrDefault(endpoint, new HashMap<>());
-//
-//                        for (String id : requestedIds) {
-//                            if (!responseData.containsKey(id)) {
-//                                responseData.put(id, null); // Add missing IDs with `null`
-//                            }
-//                        }
-//                        finalResponse.put(endpoint, responseData);
-//                    }
-
-                    return finalResponse;
-                })
-                .doOnSuccess(response -> {
-                    long elapsedTime = System.currentTimeMillis() - startTime;
-                    log.info("Finished processing for endpoint(s) {} at {}. Total time: {} ms", nonNullEndpoints, requestParser.getFormattedCurrentTime(), elapsedTime);
-                })
-                .map(ResponseEntity::ok);
+        // The List of Mono<Map<..>> responses are zipped together in 1 single Mono<ResponseEntity<..>
+        return Mono.zip(responseMonos,
+                        results ->
+                                Arrays.stream(results)
+                                // Ensures Mono.zip results are correctly extracted and structured into a Map<String, Map<String, List<?>>>
+                                .map(result -> (Map.Entry<String, Map<String, List<?>>>) result)
+                                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))
+                                .doOnSuccess(response -> {
+                                    long elapsedTime = System.currentTimeMillis() - startTime;
+                                    log.info("Finished processing for endpoint(s) {} at {}. Total time: {} ms", nonNullEndpoints, requestParser.getFormattedCurrentTime(), elapsedTime);
+                                })
+                                .map(ResponseEntity::ok);
     }
 }
