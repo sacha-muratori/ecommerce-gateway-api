@@ -1,8 +1,12 @@
 package com.ecommerce.controller.internal;
 
 import com.ecommerce.controller.internal.base.AbstractInternalController;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Mono;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -30,5 +34,11 @@ public class InventoryController extends AbstractInternalController<String> {
     @Override
     protected Map<String, String> getMockData() {
         return MOCK_INVENTORY;
+    }
+
+    @Override
+    protected String transformResponse(String value) {
+        // Wrap the response in JSON format
+        return (value != null ? "\"" + value + "\"" : "");
     }
 }

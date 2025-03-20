@@ -43,7 +43,6 @@ public class BatchRequestHandler implements BatchEventListener {
                         .uri(uriBuilder -> uriBuilder.path(endpoint + "/" + id).build())
                         .retrieve()
                         .toEntity(new ParameterizedTypeReference<>() {})
-                        .defaultIfEmpty(ResponseEntity.ok(Collections.emptyList()))
                         .flatMap(responseEntity -> {
                             Object body = responseEntity.getBody();
                             List<Object> data = (body instanceof List<?>) ? (List<Object>) body :
