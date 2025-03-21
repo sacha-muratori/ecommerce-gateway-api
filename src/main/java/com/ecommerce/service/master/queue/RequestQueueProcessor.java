@@ -7,10 +7,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -48,9 +45,6 @@ public class RequestQueueProcessor {
             return Mono.just(Map.entry(endpoint, Collections.emptyMap()));
         }
 
-        // Needed as hm for endpoint is not initialized on first request processing
-        responseCache.getCache().computeIfAbsent(endpoint, k -> new ConcurrentHashMap<>());
-
         List<Mono<Map.Entry<String, List<?>>>> waitingMonos = ids.stream()
                         .map(id -> waitForResponse(endpoint, id))
                         .toList();
@@ -70,7 +64,14 @@ public class RequestQueueProcessor {
      */
     private Mono<Map.Entry<String, List<?>>> waitForResponse(String endpoint, String id) {
         Sinks.One<List<?>> sink = Sinks.one();
-        responseCache.getCache().get(endpoint).put(id, sink);
+
+        // ComputeIfAbsent is needed as hashMap for endpoint is not initialized on first request processing
+        responseCache
+                .getCache()
+                .computeIfAbsent(endpoint, k -> new ConcurrentHashMap<>())
+                .computeIfAbsent(id, k -> new ArrayList<>())
+                .add(sink);
+
         return sink.asMono().defaultIfEmpty(Collections.emptyList()).map(data -> Map.entry(id, data));
     }
 

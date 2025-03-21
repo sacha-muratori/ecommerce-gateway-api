@@ -49,11 +49,13 @@ public class BatchRequestHandler implements BatchEventListener {
                                     (body != null ? List.of(body) : Collections.emptyList());
 
                             // Gets (and removes) the particular Sinks.One<List<?>> based on the id as key from the cache
-                            Sinks.One<List<?>> sink = responseCacheManager.getCache().get(endpoint).remove(id);
-                            if (sink != null) {
-                                // Notifies any listeners or consumers that the data for this ID is now available (Gateway Service)
-                                sink.tryEmitValue(data);
+                            List<Sinks.One<List<?>>> sinks = responseCacheManager.getCache().get(endpoint).remove(id);
+
+                            // If multiple requests contain the same id, it emits the data to all sinks
+                            if (sinks != null) {
+                                sinks.forEach(sink -> sink.tryEmitValue(data)); // Emit response to all waiting requests
                             }
+
 
                             // Each HTTP GET id process returns an empty Mono to the Flux, a formality since the Flux is not used and is empty
                             return Mono.empty();

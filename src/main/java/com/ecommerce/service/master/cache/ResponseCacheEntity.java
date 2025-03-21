@@ -15,9 +15,9 @@ public class ResponseCacheEntity {
      *
      * Singleton pattern.
      */
-    private final Map<String, Map<String, Sinks.One<List<?>>>> responseCache = new ConcurrentHashMap<>();
+    private final Map<String, Map<String, List<Sinks.One<List<?>>>>> responseCache = new ConcurrentHashMap<>();
 
-    public Map<String, Map<String, Sinks.One<List<?>>>> getCache() {
+    public Map<String, Map<String, List<Sinks.One<List<?>>>>> getCache() {
         return responseCache;
     }
 }
